@@ -1,0 +1,32 @@
+organization: Org2
+connectionProfile: ./fabclient/testdata/organizations/org2/connection-profile.yaml
+identities:
+  admin:
+    username: Admin
+    certificate: /opt/gopath/src/github.com/hyperledger/fabric/3ArchGoChain/crypto-config/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp/signcerts/Admin@org2.example.com-cert.pem
+    privateKey: /opt/gopath/src/github.com/hyperledger/fabric/3ArchGoChain/crypto-config/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp/keystore/priv_sk
+  users:
+  - username: User1
+    certificate: /opt/gopath/src/github.com/hyperledger/fabric/3ArchGoChain/crypto-config/peerOrganizations/org2.example.com/users/User1@org2.example.com/msp/signcerts/User1@org2.example.com-cert.pem
+    privateKey: /opt/gopath/src/github.com/hyperledger/fabric/3ArchGoChain/crypto-config/peerOrganizations/org2.example.com/users/User1@org2.example.com/msp/keystore/priv_sk
+channels:
+  - name: channel1
+    anchorPeerConfigPath: /opt/gopath/src/github.com/hyperledger/fabric/3ArchGoChain/Org2MSPanchors.tx
+    configPath: /opt/gopath/src/github.com/hyperledger/fabric/3ArchGoChain/channel-artifacts/channel1.tx
+chaincodes:
+  - name: archcc
+    initRequired: false
+    mustBeApprovedByOrgs:
+      - Org1MSP
+      - Org2MSP
+    path: /opt/gopath/src/github.com/hyperledger/fabric/3ArchGoChain/chaincode
+    role: member
+    sequence: 1
+    version: 1.0
+    collections:
+      - name: example
+        memberOnlyRead: false
+        policy: OR('Org1MSP.peer', 'Org2MSP.peer')
+        blockToLive: 0
+        requiredPeerCount: 0
+        maxPeerCount: 0

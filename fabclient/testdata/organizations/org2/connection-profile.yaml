@@ -1,0 +1,57 @@
+version: 1.0.0
+client:
+  organization: Org2
+  logging:
+    level: error
+  cryptoconfig:
+    path: /opt/gopath/src/github.com/hyperledger/fabric/3ArchGoChain/crypto-config
+  credentialStore:
+    path: /tmp/org2-credential-store
+    cryptoStore:
+      path: /tmp/org2-crypto-store
+organizations:
+  Org2:
+    mspid: Org2MSP
+    cryptoPath: peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp
+    peers:
+      - peer0.org2.example.com
+channels:
+  channel1:
+    orderers:
+      - orderer1.example.com
+    peers:
+      peer0.org2.example.com:
+        endorsingPeer: true
+        chaincodeQuery: true
+        ledgerQuery: true
+        eventSource: true
+        discover: true
+orderers:
+  orderer1.example.com:
+    url: 192.168.87.161:7050
+    grpcOptions:
+      ssl-target-name-override: orderer1.example.com
+      hostnameOverride: orderer1.example.com
+    tlsCACerts:
+      path: /opt/gopath/src/github.com/hyperledger/fabric/3ArchGoChain/crypto-config/ordererOrganizations/example.com/tlsca/tlsca.example.com-cert.pem
+peers:
+  peer0.org2.example.com:
+    url: 192.168.87.163:7051
+    eventUrl: 192.168.87.163:7053
+    grpcOptions:
+      ssl-target-name-override: peer0.org2.example.com
+      hostnameOverride: peer0.org2.example.com
+    tlsCACerts:
+      path: /opt/gopath/src/github.com/hyperledger/fabric/3ArchGoChain/crypto-config/peerOrganizations/org2.example.com/tlsca/tlsca.org2.example.com-cert.pem
+entityMatchers:
+  orderer:
+    - pattern: (\w*)orderer1.example.com(\w*)
+      urlSubstitutionExp: 192.168.87.161:7050
+      sslTargetOverrideUrlSubstitutionExp: orderer1.example.com
+      mappedHost: orderer1.example.com
+  peer:
+    - pattern: (\w*)peer0.org2.example.com(\w*)
+      urlSubstitutionExp: 192.168.87.163:7051
+      eventUrlSubstitutionExp: 192.168.87.163:7053
+      sslTargetOverrideUrlSubstitutionExp: peer0.org2.example.com
+      mappedHost: peer0.org2.example.com

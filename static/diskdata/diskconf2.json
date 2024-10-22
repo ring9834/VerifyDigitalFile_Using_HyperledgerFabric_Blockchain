@@ -1,0 +1,18 @@
+﻿[
+  {
+    "name": "Root",
+    "val": "/root"
+  },
+  {
+    "name": "Opt",
+    "val": "/opt"
+  },
+  {
+    "name": "User",
+    "val": "/usr"
+  },
+  {
+    "name": "根路径",
+    "val": "/"
+  }
+]
