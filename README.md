@@ -6,6 +6,7 @@ The following content is for how to configurate Blockchain Nodes including Peer 
 Here, for purpose of test, we utilize virtual machines installed Centos7 and Dockers as the infrastructure to operate Blockchain nodes. We use one virtual machine for each Organization where several Peer nodes could be settled down.
 
 ## Two Peer Blockchain Nodes and One Orderer Node
+### Configure Blockchain Nodes
 In this section, we show the codes for configuring and using two Peer nodes and one Orderer node.
 
 Sychronize the system time using this line of command in Centos.
@@ -93,4 +94,108 @@ echo '{"payload":{"header":{"channel_header":{"channel_id":"channel1", "type":2}
 
 ./bin/peer channel update -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com -c channel1 -f Org1MSPanchors.tx --tls --cafile \
 ${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
+```
+Anchor peer set for org 'Org2MSP' on channel 'channel1'.
+```sh
+export CORE_PEER_TLS_ENABLED=true;
+export CORE_PEER_LOCALMSPID="Org2MSP";
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt;
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp;
+export CORE_PEER_ADDRESS=localhost:9051;
+
+./bin/peer channel fetch config config_block.pb -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com -c channel1 --tls --cafile \
+${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
+
+./bin/configtxlator proto_decode --input config_block.pb --type common.Block | jq .data.data[0].payload.data.config >Org2MSPconfig.json;
+jq '.channel_group.groups.Application.groups.Org2MSP.values += {"AnchorPeers":{"mod_policy": "Admins","value":{"anchor_peers": [{"host": "peer0.org2.example.com","port": 9051}]},"version": "0"}}' Org2MSPconfig.json >Org2MSPmodified_config.json; 
+./bin/configtxlator proto_encode --input Org2MSPconfig.json --type common.Config >original_config.pb;
+./bin/configtxlator proto_encode --input Org2MSPmodified_config.json --type common.Config >modified_config.pb;
+./bin/configtxlator compute_update --channel_id channel1 --original original_config.pb --updated modified_config.pb >config_update.pb;
+./bin/configtxlator proto_decode --input config_update.pb --type common.ConfigUpdate >config_update.json;
+echo '{"payload":{"header":{"channel_header":{"channel_id":"channel1", "type":2}},"data":{"config_update":'$(cat config_update.json)'}}}' | jq . >config_update_in_envelope.json;
+./bin/configtxlator proto_encode --input config_update_in_envelope.json --type common.Envelope >Org2MSPanchors.tx
+
+./bin/peer channel update -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com -c channel1 -f Org2MSPanchors.tx --tls --cafile \
+${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
+```
+Pack the Chaincode (Smart contract).
+```sh
+./bin/peer lifecycle chaincode package hellocc.tar.gz -p ./chaincode/go/helloworld --label hello_1  
+```
+### Install Smart Contract on Blockchain Nodes
+Install the chaincode on the Organization one peer node.
+```sh
+export CORE_PEER_TLS_ENABLED=true;
+export CORE_PEER_LOCALMSPID="Org1MSP";
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt;
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp;
+export CORE_PEER_ADDRESS=localhost:7051;
+./bin/peer lifecycle chaincode install hellocc.tar.gz
+```
+
+Install the chaincode on the Organization two peer node.
+```sh
+export CORE_PEER_TLS_ENABLED=true;
+export CORE_PEER_LOCALMSPID="Org2MSP";
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt;
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp;
+export CORE_PEER_ADDRESS=localhost:9051;
+./bin/peer lifecycle chaincode install hellocc.tar.gz
+```
+Appove the chaincode defination on Organization one peer node.
+```sh
+export CORE_PEER_TLS_ENABLED=true;
+export CORE_PEER_LOCALMSPID="Org1MSP";
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt;
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp;
+export CORE_PEER_ADDRESS=localhost:7051;
+./bin/peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls \
+--cafile ${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem \
+--channelID channel1 --name hello_1 --version 1.0 --package-id hello_1:5cd76591329d8c8fd9d23516484735adf574e88f13b81c0f09ff0330e71dc719 --sequence 1
+```
+Appove the chaincode defination on Organization two peer node.
+```sh
+export CORE_PEER_TLS_ENABLED=true;
+export CORE_PEER_LOCALMSPID="Org2MSP";
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt;
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp;
+export CORE_PEER_ADDRESS=localhost:9051;
+./bin/peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls \
+--cafile ${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem \
+--channelID channel1 --name hello_1 --version 1.0 --package-id hello_1:5cd76591329d8c8fd9d23516484735adf574e88f13b81c0f09ff0330e71dc719 --sequence 1
+```
+Check the defination of the chaincode.
+```sh
+./bin/peer lifecycle chaincode checkcommitreadiness --channelID channel1 --name hello_1 --version 1.0 --sequence 1 --output json
+```
+Submit the chaincode defination to the channel1.
+```sh
+./bin/peer lifecycle chaincode commit -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls \
+--cafile ${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem \
+--channelID channel1 --name hello_1 \
+--peerAddresses localhost:7051 \
+--tlsRootCertFiles ${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt \
+--peerAddresses localhost:9051 \
+--tlsRootCertFiles ${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt \
+--version 1.0 --sequence 1
+```
+### Accessing Data on Blockchain
+Invode the InitLedger function in the chaincode.
+```sh
+export PATH=${PWD}/bin:$PATH
+export FABRIC_CFG_PATH=${PWD}/config/ #设置FABRIC_CFG_PATH 指向core.yaml文件
+export CORE_PEER_TLS_ENABLED=true #以下为设置环境变量为org1的，即在org1上调用链码
+export CORE_PEER_LOCALMSPID="Org1MSP"
+export CORE_PEER_TLS_ROOTCERT_FILE=${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+export CORE_PEER_MSPCONFIGPATH=${PWD}/organizations/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp
+export CORE_PEER_ADDRESS=localhost:7051
+./bin/peer chaincode invoke -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls \
+--cafile "${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" -C channel1 -n hello_1 \
+--peerAddresses localhost:7051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt" \
+--peerAddresses localhost:9051 --tlsRootCertFiles "${PWD}/organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt" \
+-c '{"function":"InitLedger","Args":[]}'
+```
+Query the data saved on Blockchain.
+```sh
+./bin/peer chaincode query -C channel1 -n hello_1 -c '{"Args":["GetAllAssets"]}'
 ```
